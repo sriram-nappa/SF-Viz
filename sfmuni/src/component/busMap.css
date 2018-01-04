@@ -1,0 +1,23 @@
+.arteries, .freeways, .neighborhoods, .streets {
+    stroke: #000000;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.map-container {
+    display: block;
+    width: 80vw;
+    height: 100vh;
+    float: left;  
+    overflow-y: hidden;  
+    overflow-x: hidden;
+    padding: 4px;
+    margin: 0 auto;
+}
+
+svg {
+    border: 1px solid black;
+    background-color: rgb(128, 204, 255);
+    margin: 10px;
+}
