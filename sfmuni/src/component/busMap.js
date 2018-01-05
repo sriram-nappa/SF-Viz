@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import * as d3 from 'd3';
+import RouteSelector from './routeSelector'
 import {arteriesData, freewaysData, neighborhoodData, streetData} from '../data/sfmaps/sf-map'
 
 import './busMap.css';
@@ -22,10 +23,11 @@ class BusMapSF extends Component {
     constructor(props) {
         super(props)
         this.timer = null
+        this.routeUpdate = this.routeUpdate.bind(this)
         this.state = {
             vehicle: null,
             path: {},
-            vehiclePos: {},
+            routes: {},
             timer: null,
             time: 0
         }
@@ -52,7 +54,7 @@ class BusMapSF extends Component {
         })
     }
     componentDidUpdate(prevProps, prevState) {
-        if(prevState.time !== this.state.time || prevState.vehicle !== this.state.vehicle)
+        if(prevState.time !== this.state.time || prevState.vehicle !== this.state.vehicle || prevState.routes !== this.state.routes)
             this.drawVehiclePosition()
     }
 
@@ -78,6 +80,12 @@ class BusMapSF extends Component {
             .data(mapData.features).enter()
             .append('path').attr('class', className)
             .attr('d', gPath)
+    }
+
+    routeUpdate(selectedRoutes) {
+        this.setState({
+            routes: selectedRoutes
+        })
     }
     
     async drawVehiclePosition() {
@@ -128,7 +136,7 @@ class BusMapSF extends Component {
                         }
                         return colour;
                     })
-					.attr('fill-opacity', '0.75')
+					.attr('fill-opacity', '0.9')
                     // .attr("cx", function (d) { 
 					// 	return mapProjection([d.lon,d.lat])[0]; 
 					// })
@@ -154,14 +162,18 @@ class BusMapSF extends Component {
     }
 
     render() {
+        const {routes} = this.state
+        console.log('render')
         return (
             <div className="sfviz-wrapper">
                 <div className="side-pane">    
                     <div className="zoom-ctrl">
+                        <h3>Zoom Controls</h3>
                         <button id="zoom_in">+</button>
                         <button id="zoom_out">-</button>
                     </div>
                     <div className="route-select">
+                        <RouteSelector allRoutes={routes} routeUpdate={this.routeUpdate}/>
                     </div>
                     <div className="tooltip-container">
                         <h3>Vehicle Details</h3>
