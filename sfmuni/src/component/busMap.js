@@ -30,7 +30,8 @@ class BusMapSF extends Component {
             routes: {},
             timer: null,
             time: 0,
-            loader: false
+            loader: false,
+            pathHistory: {},
         }
     }
 
@@ -68,7 +69,7 @@ class BusMapSF extends Component {
     setTimer(time) {
         clearInterval(this.timer)
         this.timer = setInterval(() => {
-            this.setState({time: time})
+            this.setState({time: time, loader: true})
         }, 15000)
     }
 
@@ -85,8 +86,7 @@ class BusMapSF extends Component {
 
     routeUpdate(selectedRoutes) {
         this.setState({
-            routes: selectedRoutes,
-            loader: true
+            routes: selectedRoutes
         })
     }
 
@@ -98,6 +98,41 @@ class BusMapSF extends Component {
         return filteredData
     }
     
+    // Logic to generate pair of recent path points for each vehicle.
+    generatePathJSON(vehicleData) {
+        let locationCache = this.state.pathHistory,
+            count = 0
+        if(Object.keys(locationCache).length === 0){
+            vehicleData.map((vehicleObj) => {
+                let x = mapProjection([vehicleObj.lon,vehicleObj.lat])[0],
+                    y = mapProjection([vehicleObj.lon,vehicleObj.lat])[1],
+                    tempArr = []
+                tempArr.push([x,y])
+                locationCache[vehicleObj.id] = tempArr
+            })
+        } else {
+            vehicleData.map((vehicleObj) => {
+                let x = mapProjection([vehicleObj.lon,vehicleObj.lat])[0],
+                    y = mapProjection([vehicleObj.lon,vehicleObj.lat])[1]
+                if(locationCache[vehicleObj.id]) {
+                    if(locationCache[vehicleObj.id].length > 1) {
+                        locationCache[vehicleObj.id].shift()
+                    }
+                    locationCache[vehicleObj.id].push([x,y])
+                } else {
+                    let tempArr = []
+                    tempArr.push([x,y])
+                    locationCache[vehicleObj.id] = tempArr
+                }
+            })
+        }
+        this.setState({pathHistory: locationCache})
+    }
+
+    drawVehiclePath() {
+        return null
+    }
+
     async drawVehiclePosition() {
         const {routes} = this.state
         const response = await fetch(vehicleDataURL)
@@ -114,49 +149,28 @@ class BusMapSF extends Component {
         if(routes && routes.length) {
             vehiclePositions = this.filterVehicleData(vehiclePositions, routes)
         }
-
+        this.generatePathJSON(vehiclePositions)
         d3.selectAll('.sf-bus').remove();
-        // var t = d3.transition()
-        //     .duration(750)
-        //     .ease(d3.easeLinear);
-            
+
         let vehiclesPlot = this.state.vehicle
                     .selectAll('path')
                     .data(vehiclePositions)
                     .enter()
                     .append('svg:image')
                     .attr('xlink:href','http://www.iconninja.com/files/186/978/449/buss-shuttle-coach-bus-icon.svg')
-                    .attr('x', function (d) { 
+                    .attr('x', (d) => {
 						return mapProjection([d.lon,d.lat])[0]; 
 					})
-                    .attr('y', function (d) { 
+                    .attr('y', (d) => { 
 						return mapProjection([d.lon,d.lat])[1]; 
                     })
                     .attr('width',10)
                     .attr('height',10)
                     .attr('class','sf-bus')
-                    .attr('id', function(d){ return d.id; })
-					.attr('fill', function(d) {
-                        var str = d.routeTag;
-                        var hash = 0;
-                        for (var i = 0; i < str.length; i++) {
-                            hash = str.charCodeAt(i) + ((hash << 5) - hash);
-                        }
-                        var colour = '#';
-                        for (i = 0; i < 3; i++) {
-                            var value = (hash >> (i * 8)) & 0xFF;
-                            colour += ('66' + value.toString(16)).substr(-2);
-                        }
-                        return colour;
+                    .attr('id', (d) => {
+                        
+                        return d.id 
                     })
-					.attr('fill-opacity', '0.9')
-                    // .attr("cx", function (d) { 
-					// 	return mapProjection([d.lon,d.lat])[0]; 
-					// })
-					// .attr("cy", function (d) { 
-					// 	return mapProjection([d.lon,d.lat])[1]; 
-					// })
-                    //Tooltip for display bus information
                     .on("mouseover", function(d) {		
                         tooltipDiv.transition()		
                             .duration(200)		
