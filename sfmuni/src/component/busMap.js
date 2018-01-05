@@ -38,6 +38,7 @@ class BusMapSF extends Component {
         let map = d3.select('.map-container').append('svg').attr('width',width).attr('height',height)
         mapProjection = d3.geoMercator().scale(1).translate([width*3/8, height/2]).rotate([SFcity.lon, 0]).center([0,SFcity.lat])
         mapProjection.fitSize([width, height],neighborhoodData)
+        
         // map.call(d3.zoom().on('zoom', function () {
         //     map.attr("transform", d3.event.transform)
         //  }))
