@@ -1,13 +1,13 @@
-.arteries, .freeways, .neighborhoods, .streets {
-    stroke: #000000;
-    fill: none;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+.side-pane {
+    width: 20%;
+    float: left;
+    height: 100vh;
+    background: #309ef2;
 }
 
 .map-container {
     display: block;
-    width: 80vw;
+    width: 78vw;
     height: 100vh;
     float: left;  
     overflow-y: hidden;  
@@ -21,3 +21,19 @@ svg {
     background-color: rgb(128, 204, 255);
     margin: 10px;
 }
+
+.arteries, .freeways, .neighborhoods, .streets {
+    stroke: #000000;
+    fill: none;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.sf-bus {
+    fill: yellowgreen;
+}
+
+.zoom-ctrl button {
+    padding: 10px 20px;
+}
+
