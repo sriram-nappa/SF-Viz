@@ -1,14 +1,16 @@
 import React, {Component} from 'react';
+import './routeSelector.css';
+import { select } from 'd3-selection';
 
 const routeURL = "http://webservices.nextbus.com/service/publicJSONFeed?command=routeList&a=sf-muni"
-
 let allOptions = []
+
 class RouteSelector extends Component {
     constructor(props) {
         super(props)
         this.state = {
             routes : {},
-            selectedRoutes : {}
+            selectedRoutes : ["all"]
         }
         this.optionSelect = this.optionSelect.bind(this)
         this.renderMap = this.renderMap.bind(this)
@@ -62,28 +64,33 @@ class RouteSelector extends Component {
 
     renderMap() {
         const {selectedRoutes} = this.state
-        this.props.routeUpdate(selectedRoutes)
+        if(selectedRoutes.indexOf("all")<0)
+            this.props.routeUpdate(selectedRoutes)
+        else
+            this.props.routeUpdate([])
     }
 
     optionSelect(ev) {
         let allOptions = [...ev.target.options]
-        let selectedOptions = allOptions.filter((option) => {
-           return (option.selected)
+        let selectedOptions = []
+        selectedOptions = allOptions.filter((option) => {
+            return (option.selected)
         }).map(option => {
             return option.value
         })
-        this.setState({selectedRoutes : selectedOptions})
+        let selectedRoutes = (selectedOptions.indexOf("all")<0) ? [...selectedOptions] : ["all"]
+        console.log(selectedRoutes)
+        this.setState({selectedRoutes : selectedRoutes})
     }
 
     render() {
-        const {routes} = this.state
-        // let htmlVal = this.renderOptions(routes)
+        const {routes, selectedRoutes} = this.state
         console.log(routes)
         return (
             <div>
                 <h3>Select Routes:</h3>   
-                <select multiple onChange={(ev) => this.optionSelect(ev)}>
-                    {/* <option value="Test">Test</option> */}
+                <select multiple className="route-selector" value={selectedRoutes} onChange={(ev) => this.optionSelect(ev)}>
+                    <option value="all">All Routes</option>
                     {this.renderOptions(allOptions)}
                 </select>
                 <button onClick={this.renderMap}>Render Selection</button>

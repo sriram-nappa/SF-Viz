@@ -5,13 +5,13 @@ import {arteriesData, freewaysData, neighborhoodData, streetData} from '../data/
 
 import './busMap.css';
 
-let mapData = [arteriesData, freewaysData, neighborhoodData, streetData]
-let mapName = ['arteries', 'freeways', 'neighborhoods', 'streets']
+const mapData = [arteriesData, freewaysData, neighborhoodData, streetData]
+const mapName = ['arteries', 'freeways', 'neighborhoods', 'streets']
 
 let mapProjection = null
-let width = window.innerWidth * 0.8 - 30
-let height = window.innerHeight - 30
-let SFcity = {
+const width = window.innerWidth * 0.8 - 30
+const height = window.innerHeight - 30
+const SFcity = {
     lon: 122.4417686,
     lat: 37.7682044
 }
@@ -29,13 +29,14 @@ class BusMapSF extends Component {
             path: {},
             routes: {},
             timer: null,
-            time: 0
+            time: 0,
+            loader: false
         }
     }
 
     componentDidMount() {
         let map = d3.select('.map-container').append('svg').attr('width',width).attr('height',height)
-        mapProjection = d3.geoMercator().scale(200000).translate([width*3/8, height/2]).rotate([SFcity.lon, 0]).center([0,SFcity.lat])
+        mapProjection = d3.geoMercator().scale(1).translate([width*3/8, height/2]).rotate([SFcity.lon, 0]).center([0,SFcity.lat])
         mapProjection.fitSize([width, height],neighborhoodData)
         // map.call(d3.zoom().on('zoom', function () {
         //     map.attr("transform", d3.event.transform)
@@ -64,7 +65,6 @@ class BusMapSF extends Component {
     }
 
     setTimer(time) {
-        console.log('In timer')
         clearInterval(this.timer)
         this.timer = setInterval(() => {
             this.setState({time: time})
@@ -84,11 +84,21 @@ class BusMapSF extends Component {
 
     routeUpdate(selectedRoutes) {
         this.setState({
-            routes: selectedRoutes
+            routes: selectedRoutes,
+            loader: true
         })
+    }
+
+    filterVehicleData(response, selectedRoutes) {
+        let filteredData = response.filter((vehicleObj) => {
+            return (selectedRoutes.indexOf(vehicleObj.routeTag) !== -1)
+        })
+        console.log(filteredData)
+        return filteredData
     }
     
     async drawVehiclePosition() {
+        const {routes} = this.state
         const response = await fetch(vehicleDataURL)
         const vehicleData = await response.json()
         let vehiclePositions = vehicleData.vehicle
@@ -98,9 +108,11 @@ class BusMapSF extends Component {
         console.log(vehiclePositions)
         if(vehicleData && vehicleData.lastTime) {
             lasttime = vehicleData.lastTime.time
-            console.log(lasttime)
         }
         this.setTimer(lasttime)
+        if(routes && routes.length) {
+            vehiclePositions = this.filterVehicleData(vehiclePositions, routes)
+        }
 
         d3.selectAll('.sf-bus').remove();
         // var t = d3.transition()
@@ -159,18 +171,19 @@ class BusMapSF extends Component {
                     })
                     .attr('d', this.state.path);
                 vehiclesPlot.exit().remove();
+                this.setState({loader: false})
     }
 
     render() {
-        const {routes} = this.state
-        console.log('render')
+        const {routes, loader} = this.state
+        console.log('render', loader)
         return (
             <div className="sfviz-wrapper">
                 <div className="side-pane">    
                     <div className="zoom-ctrl">
                         <h3>Zoom Controls</h3>
-                        <button id="zoom_in">+</button>
-                        <button id="zoom_out">-</button>
+                        <button data-zoom="+1">Zoom In</button>
+                        <button data-zoom="-1">Zoom Out</button>
                     </div>
                     <div className="route-select">
                         <RouteSelector allRoutes={routes} routeUpdate={this.routeUpdate}/>
@@ -183,6 +196,13 @@ class BusMapSF extends Component {
                 </div>
                 <div className="map-container">
                 </div>
+                {
+                    (loader) ? 
+                        <div className="overlay">
+                            <div className="spinner">
+                            </div>
+                        </div> : null
+                }
             </div>
         )
     }
