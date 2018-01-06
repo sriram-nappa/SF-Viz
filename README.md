@@ -1,6 +1,6 @@
 ## SF-Viz
 
-This is React Web application to visualize the bus transit routes in San Francisco using d3.js and NextBus API.
+This is a Web application built with react.js to visualize the bus transit routes in San Francisco using d3.js and NextBus API.
 
 ### Table of Contents
 * [Getting Started](#getting-started)
