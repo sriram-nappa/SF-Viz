@@ -7,45 +7,54 @@
 
 .map-container {
     display: block;
-    width: 78vw;
-    height: 100vh;
-    float: left;  
+    width: 80vw;
+    height: 99vh;
+    float: left;
     overflow-y: hidden;  
     overflow-x: hidden;
-    padding: 4px;
-    margin: 0 auto;
+    margin-top: 10px;
 }
 
 svg {
     border: 1px solid black;
-    background-color: rgb(193, 209, 200);
-    margin: 10px;
+    background-color: #8bbae1;
+    margin: 5px;
     shape-rendering: optimizeSpeed;
 }
 
 .arteries, .freeways, .neighborhoods, .streets {
-    stroke: #ffffff;
+    stroke: #000000;
     fill: none;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
 
-.sf-bus {
-    fill: yellowgreen;
+.map-msg {
+    font-style: italic;
 }
 
 .zoom-ctrl button {
     padding: 10px 20px;
 }
 
+.vehicle-path {
+    stroke-width: 3px;
+    stroke: rgb(255, 255, 255);
+}
+
+.tooltip {
+    width: 80%;
+    height: 70px;
+    margin: 0 auto;
+}
+
 .overlay {
-    width: 100%;
+    width: 80%;
     height: 100%;
     position: fixed;
     top: 0;
     right: 0;
     bottom: 0;
-    left: 0;
     background-color: rgba(0,0,0,.5);
 }
 

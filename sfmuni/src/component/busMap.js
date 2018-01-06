@@ -5,9 +5,11 @@ import {arteriesData, freewaysData, neighborhoodData, streetData} from '../data/
 
 import './busMap.css';
 
+// Combined JSON Map Data
 const mapData = [arteriesData, freewaysData, neighborhoodData, streetData]
 const mapName = ['arteries', 'freeways', 'neighborhoods', 'streets']
 
+// Global Map Props
 let mapProjection = null
 const width = window.innerWidth * 0.8 - 30
 const height = window.innerHeight - 30
@@ -16,8 +18,12 @@ const SFcity = {
     lat: 37.7682044
 }
 
+// REST API Vehicle Location URL
 const vehicleDataURL = "http://webservices.nextbus.com/service/publicJSONFeed?command=vehicleLocations&a=sf-muni&t=0"
+
+// Global props
 let lasttime = 0
+let pathHistory = {}
 
 class BusMapSF extends Component {
     constructor(props) {
@@ -31,19 +37,15 @@ class BusMapSF extends Component {
             timer: null,
             time: 0,
             loader: false,
-            pathHistory: {},
         }
     }
 
+    // Life Cycle Methods
     componentDidMount() {
         let map = d3.select('.map-container').append('svg').attr('width',width).attr('height',height)
         mapProjection = d3.geoMercator().scale(1).translate([width*3/8, height/2]).rotate([SFcity.lon, 0]).center([0,SFcity.lat])
         mapProjection.fitSize([width, height],neighborhoodData)
-        
-        // map.call(d3.zoom().on('zoom', function () {
-        //     map.attr("transform", d3.event.transform)
-        //  }))
-        //  .append("g")
+
         const gPath = this.pathWithProjection(mapProjection)
         let dMap = []
         for(let i=0; i<mapName.length; i++) {
@@ -56,16 +58,17 @@ class BusMapSF extends Component {
             vehicle: vehicle
         })
     }
+
     componentDidUpdate(prevProps, prevState) {
         if(prevState.time !== this.state.time || prevState.vehicle !== this.state.vehicle || prevState.routes !== this.state.routes)
             this.drawVehiclePosition()
     }
 
     componentWillUnmount() {
-        console.log('clear')
         clearInterval(this.timer)
     }
 
+    // 15 seconds refresh timer
     setTimer(time) {
         clearInterval(this.timer)
         this.timer = setInterval(() => {
@@ -73,10 +76,12 @@ class BusMapSF extends Component {
         }, 15000)
     }
 
+    //Geo Path Genrator
     pathWithProjection(projection) {
         return d3.geoPath().projection(projection)
     }
 
+    // Paints JSON Map features
     drawMap(className, mapData, map, gPath) {
         return map.append('g').selectAll('path')
             .data(mapData.features).enter()
@@ -84,24 +89,25 @@ class BusMapSF extends Component {
             .attr('d', gPath)
     }
 
+    // Updates the selected routes
     routeUpdate(selectedRoutes) {
         this.setState({
             routes: selectedRoutes
         })
     }
 
+    // Filter Vehicles based on selected routes
     filterVehicleData(response, selectedRoutes) {
         let filteredData = response.filter((vehicleObj) => {
             return (selectedRoutes.indexOf(vehicleObj.routeTag) !== -1)
         })
-        console.log(filteredData)
         return filteredData
     }
     
     // Logic to generate pair of recent path points for each vehicle.
     generatePathJSON(vehicleData) {
-        let locationCache = this.state.pathHistory,
-            count = 0
+        let locationCache = pathHistory,
+            filteredJSON = {}
         if(Object.keys(locationCache).length === 0){
             vehicleData.map((vehicleObj) => {
                 let x = mapProjection([vehicleObj.lon,vehicleObj.lat])[0],
@@ -109,9 +115,10 @@ class BusMapSF extends Component {
                     tempArr = []
                 tempArr.push([x,y])
                 locationCache[vehicleObj.id] = tempArr
+                return null
             })
         } else {
-            vehicleData.map((vehicleObj) => {
+            vehicleData.forEach((vehicleObj) => {
                 let x = mapProjection([vehicleObj.lon,vehicleObj.lat])[0],
                     y = mapProjection([vehicleObj.lon,vehicleObj.lat])[1]
                 if(locationCache[vehicleObj.id]) {
@@ -126,22 +133,63 @@ class BusMapSF extends Component {
                 }
             })
         }
-        this.setState({pathHistory: locationCache})
+        if(Object.keys(locationCache).length !== vehicleData.length) {
+            vehicleData.map((vehicle)=> {
+                filteredJSON[vehicle.id] = locationCache[vehicle.id]
+                return null
+            })
+            pathHistory = {...filteredJSON}
+        } else {
+            pathHistory = {...locationCache}
+        }
+        return pathHistory
     }
 
-    drawVehiclePath() {
-        return null
+    // Renders vehicle paths based on last two recent positions
+    drawVehiclePath(pathJSON) {
+        let vehicleIds = Object.keys(pathJSON)
+        let points = Object.values(pathJSON)
+        let {vehicle} = this.state
+        let pathTooltip = d3.select(".path-tooltip")
+                    .append("div")
+                    .attr("class", "tooltip")				
+                    .style("opacity", 0);
+        let line = d3.line()
+                    .x((d,i)=>{
+                        return d[0]
+                    })
+                    .y((d,i)=>{
+                        return d[1]
+                    })
+        points.forEach((point, i) => {
+            if(point.length > 1)
+                vehicle.append("path")
+                    .attr("class", "vehicle-path")
+                    .attr("d", line(point))
+                    .style("cursor", "pointer")
+                    .on("mouseover", function(d) {	
+                        pathTooltip.transition()		
+                            .duration(100)		
+                            .style("opacity", .9)		
+                        pathTooltip.html(`Vehicle ID - ${vehicleIds[i]}`)	
+                        }
+                    )
+        })
     }
 
+    // Render vehicle icons based on the location
     async drawVehiclePosition() {
-        const {routes} = this.state
+        const {routes, vehicle} = this.state
         const response = await fetch(vehicleDataURL)
         const vehicleData = await response.json()
         let vehiclePositions = vehicleData.vehicle
-        let tooltipDiv = d3.select(".tooltip").append("div")	
-                    .attr("class", "tooltip")				
-                    .style("opacity", 0);
-        console.log(vehiclePositions)
+
+        d3.selectAll('.tooltip').remove()
+
+        let vehicleTooltip = d3.select(".vehicle-tooltip")
+                    .append("div")
+                    .attr("class", "tooltip")
+                    .style("opacity", 0)
         if(vehicleData && vehicleData.lastTime) {
             lasttime = vehicleData.lastTime.time
         }
@@ -149,15 +197,17 @@ class BusMapSF extends Component {
         if(routes && routes.length) {
             vehiclePositions = this.filterVehicleData(vehiclePositions, routes)
         }
-        this.generatePathJSON(vehiclePositions)
-        d3.selectAll('.sf-bus').remove();
+        let pathJSON = this.generatePathJSON(vehiclePositions)
+        d3.selectAll('.vehicle-path').remove()
+        d3.selectAll('.sf-bus').remove()
 
-        let vehiclesPlot = this.state.vehicle
+        let vehiclesPlot = vehicle
                     .selectAll('path')
                     .data(vehiclePositions)
                     .enter()
                     .append('svg:image')
-                    .attr('xlink:href','http://www.iconninja.com/files/186/978/449/buss-shuttle-coach-bus-icon.svg')
+                    .attr('class','sf-bus')
+                    .attr('xlink:href','https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/MTS_Bus_icon.svg/500px-MTS_Bus_icon.svg.png')
                     .attr('x', (d) => {
 						return mapProjection([d.lon,d.lat])[0]; 
 					})
@@ -166,46 +216,41 @@ class BusMapSF extends Component {
                     })
                     .attr('width',10)
                     .attr('height',10)
-                    .attr('class','sf-bus')
                     .attr('id', (d) => {
-                        
                         return d.id 
                     })
-                    .on("mouseover", function(d) {		
-                        tooltipDiv.transition()		
-                            .duration(200)		
-                            .style("opacity", .9);		
-                        tooltipDiv.html('Route - ' + d.routeTag + '<br/> Speed - ' + d.speedKmHr + 'km/hr')
-                            .style("left", (d3.event.pageX) + "px")		
-                            .style("top", (d3.event.pageY + 50) + "px");	
+                    .style("cursor", "pointer")
+                    .on("mouseover", function(d) {	
+                        vehicleTooltip.transition()		
+                            .duration(100)		
+                            .style("opacity", .9)		
+                        vehicleTooltip.html(`Vehicle ID - ${d.id}<br/> Route - ${d.routeTag}<br/> Speed - ${d.speedKmHr} km/hr`)	
                         })
-                    .on("mouseout", function(d) {		
-                        tooltipDiv.transition()		
-                            .duration(500)		
-                            .style("opacity", 0);	
-                    })
                     .attr('d', this.state.path);
                 vehiclesPlot.exit().remove();
-                this.setState({loader: false})
+        this.drawVehiclePath(pathJSON)
+        this.setState({loader: false})
     }
 
     render() {
         const {routes, loader} = this.state
-        console.log('render', loader)
         return (
             <div className="sfviz-wrapper">
-                <div className="side-pane">    
-                    <div className="zoom-ctrl">
-                        <h3>Zoom Controls</h3>
-                        <button data-zoom="+1">Zoom In</button>
-                        <button data-zoom="-1">Zoom Out</button>
-                    </div>
+                <div className="side-pane">  
+                    <h1>San Francisco City</h1>
+                    <h2>Bus Routes and Location</h2>
+                    <p className="map-msg">Map automatically updates every 15 seconds</p>
                     <div className="route-select">
                         <RouteSelector allRoutes={routes} routeUpdate={this.routeUpdate}/>
                     </div>
                     <div className="tooltip-container">
                         <h3>Vehicle Details</h3>
-                        <div className="tooltip">
+                        <h5>(Hover over a vehicle)</h5>
+                        <div className="vehicle-tooltip">
+                        </div>
+                        <h3>Path Details</h3>
+                        <h5>(Hover over a path)</h5>
+                        <div className="path-tooltip">
                         </div>
                     </div>
                 </div>
